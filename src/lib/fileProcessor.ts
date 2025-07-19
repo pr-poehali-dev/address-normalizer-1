@@ -117,18 +117,22 @@ const fixSpellingErrors = (address: string): { corrected: string; confidence: nu
   let correctedAddress = address;
   let totalConfidence = 100;
   
-  // Разбиваем адрес на части
+  // Разбиваем адрес на части, сохраняя исходную структуру
   const parts = address.split(/[,\s]+/).filter(part => part.length > 2);
   
   for (const part of parts) {
     const results = fuse.search(part);
     
-    if (results.length > 0 && results[0].score! < 0.3) {
+    // Более строгий порог для замены и проверка на избежание дублирования
+    if (results.length > 0 && results[0].score! < 0.2) {
       const bestMatch = results[0].item.item;
       const confidence = Math.round((1 - results[0].score!) * 100);
       
-      if (confidence > 70) {
-        correctedAddress = correctedAddress.replace(part, bestMatch);
+      // Проверяем, что исправление не создает дубликат
+      if (confidence > 85 && !correctedAddress.toLowerCase().includes(bestMatch.toLowerCase())) {
+        // Заменяем только если это явно опечатка
+        const regex = new RegExp(`\\b${part}\\b`, 'gi');
+        correctedAddress = correctedAddress.replace(regex, bestMatch);
         totalConfidence = Math.min(totalConfidence, confidence);
       }
     }
@@ -144,40 +148,32 @@ const fixSpellingErrors = (address: string): { corrected: string; confidence: nu
 const normalizeAddress = (address: string): AddressData['normalized'] => {
   let normalized = address.trim();
   
-  // Базовые правила нормализации
+  // Только базовые правила форматирования без изменения содержания
   normalized = normalized
     .replace(/\s+/g, ' ') // Убираем лишние пробелы
     .replace(/(\d+)\s*-\s*(\d+)/g, '$1-$2') // Нормализуем номера домов
-    .replace(/д\.\s*/g, 'д. ') // Стандартизируем "д."
-    .replace(/ул\.\s*/g, 'ул. ') // Стандартизируем "ул."
-    .replace(/пр\.\s*/g, 'проспект ') // Заменяем сокращения
-    .replace(/пл\.\s*/g, 'площадь ') // Заменяем сокращения
-    .replace(/наб\.\s*/g, 'набережная '); // Заменяем сокращения
+    .replace(/\bд\.\s*/gi, 'д. ') // Стандартизируем "д."
+    .replace(/\bул\.\s*/gi, 'ул. ') // Стандартизируем "ул."
+    .replace(/\bпр\.\s*/gi, 'пр. ') // Оставляем сокращения как есть
+    .replace(/\bпл\.\s*/gi, 'пл. ') // Оставляем сокращения как есть
+    .replace(/\bнаб\.\s*/gi, 'наб. '); // Оставляем сокращения как есть
   
-  // Исправляем орфографические ошибки
-  const { corrected } = fixSpellingErrors(normalized);
+  // Убираем лишние пробелы после обработки
+  normalized = normalized.replace(/\s+/g, ' ').trim();
   
-  return corrected;
+  return normalized;
 };
 
 // Валидация адреса
 const validateAddress = (original: string, normalized: string): { isValid: boolean; errorMessage?: string } => {
-  // Простые правила валидации
-  if (!normalized || normalized.length < 5) {
+  // Упрощенная валидация - проверяем только базовые требования
+  if (!normalized || normalized.length < 3) {
     return { isValid: false, errorMessage: 'Адрес слишком короткий' };
   }
   
-  if (!normalized.match(/\d/)) {
-    return { isValid: false, errorMessage: 'Отсутствует номер дома' };
-  }
-  
-  // Проверяем наличие города или улицы в базе
-  const hasKnownParts = addressDatabase.some(knownPart => 
-    normalized.toLowerCase().includes(knownPart.toLowerCase())
-  );
-  
-  if (!hasKnownParts) {
-    return { isValid: false, errorMessage: 'Неизвестный город или улица' };
+  // Проверяем наличие хотя бы одной буквы (название улицы/города)
+  if (!normalized.match(/[а-яё]/i)) {
+    return { isValid: false, errorMessage: 'Адрес должен содержать название' };
   }
   
   return { isValid: true };
@@ -206,10 +202,15 @@ export const processAddressFile = async (
       total: rawData.length
     };
     
-    // Обрабатываем каждую строку
+    // Обрабатываем каждую строку, берем все столбцы как адреса
     for (let i = 0; i < rawData.length; i++) {
       const row = rawData[i];
-      const originalAddress = row[0]?.toString().trim();
+      
+      // Объединяем все столбцы в один адрес, если их несколько
+      const originalAddress = row
+        .filter(cell => cell && cell.toString().trim())
+        .join(', ')
+        .trim();
       
       if (!originalAddress) continue;
       

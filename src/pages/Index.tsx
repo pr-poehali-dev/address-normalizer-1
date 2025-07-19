@@ -187,7 +187,7 @@ const Index = () => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {displayResults.slice(0, 10).map((result) => (
+                      {displayResults.map((result) => (
                         <TableRow key={result.id}>
                           <TableCell className="text-sm text-gray-600">
                             {result.original}
@@ -219,7 +219,7 @@ const Index = () => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {displayErrors.slice(0, 10).map((error) => (
+                      {displayErrors.map((error) => (
                         <TableRow key={error.id}>
                           <TableCell className="text-sm text-gray-600">
                             {error.original}
