@@ -1,63 +1,76 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import Icon from '@/components/ui/icon';
+import { processAddressFile, exportToExcel, exportToCSV, type ProcessingResult, type AddressData } from '@/lib/fileProcessor';
 
 const Index = () => {
   const [currentStep, setCurrentStep] = useState<'upload' | 'processing' | 'results'>('upload');
   const [progress, setProgress] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [processedData, setProcessedData] = useState<ProcessingResult | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleUpload = () => {
-    setCurrentStep('processing');
-    setIsProcessing(true);
-    
-    // Имитация прогресса
-    let progressValue = 0;
-    const interval = setInterval(() => {
-      progressValue += Math.random() * 15;
-      if (progressValue >= 100) {
-        progressValue = 100;
-        setProgress(100);
-        clearInterval(interval);
-        setTimeout(() => {
-          setCurrentStep('results');
-          setIsProcessing(false);
-        }, 500);
-      } else {
-        setProgress(progressValue);
-      }
-    }, 200);
+  const handleFileSelect = () => {
+    fileInputRef.current?.click();
   };
 
-  const handleDownload = () => {
-    const blob = new Blob(['Результаты нормализации адресов'], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'normalized_addresses.txt';
-    a.click();
-    URL.revokeObjectURL(url);
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+      handleUpload(file);
+    }
+  };
+
+  const handleUpload = async (file: File) => {
+    setCurrentStep('processing');
+    setIsProcessing(true);
+    setProgress(0);
+    
+    try {
+      const result = await processAddressFile(file, (progressValue) => {
+        setProgress(progressValue);
+      });
+      
+      setProcessedData(result);
+      setCurrentStep('results');
+      setIsProcessing(false);
+    } catch (error) {
+      console.error('Ошибка обработки файла:', error);
+      setIsProcessing(false);
+      setCurrentStep('upload');
+      alert('Ошибка обработки файла: ' + error);
+    }
+  };
+
+  const handleDownload = (format: 'excel' | 'csv' = 'excel') => {
+    if (!processedData) return;
+    
+    if (format === 'excel') {
+      exportToExcel(processedData);
+    } else {
+      exportToCSV(processedData);
+    }
   };
 
   const handleReset = () => {
     setCurrentStep('upload');
     setProgress(0);
     setIsProcessing(false);
+    setProcessedData(null);
+    setSelectedFile(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
-  const mockResults = [
-    { id: 1, original: 'Москва, ул. Ленина д. 10', normalized: 'г. Москва, ул. Ленина, д. 10', status: 'Нормализован' },
-    { id: 2, original: 'СПб, Невский пр., 20', normalized: 'г. Санкт-Петербург, Невский проспект, д. 20', status: 'Нормализован' },
-    { id: 3, original: 'Екатеринбург, ул. Малышева 15', normalized: 'г. Екатеринбург, ул. Малышева, д. 15', status: 'Нормализован' }
-  ];
-
-  const mockErrors = [
-    { id: 1, address: 'Неизвестный город, ул. Фантазии 99', error: 'Город не найден в базе данных' },
-    { id: 2, address: 'Москва, ул. Несуществующая 777', error: 'Улица не найдена' }
-  ];
+  // Используем реальные данные или заглушки
+  const displayResults = processedData?.success || [];
+  const displayErrors = processedData?.errors || [];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-brand-gray via-white to-purple-50">
@@ -88,8 +101,15 @@ const Index = () => {
                 <div className="border-2 border-dashed border-gray-200 rounded-xl p-12 hover:border-brand-purple transition-colors">
                   <Icon name="Upload" size={48} className="mx-auto text-gray-400 mb-4" />
                   <p className="text-gray-600 mb-4">Перетащите файл сюда или</p>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".csv,.xlsx,.xls"
+                    onChange={handleFileChange}
+                    className="hidden"
+                  />
                   <Button 
-                    onClick={handleUpload}
+                    onClick={handleFileSelect}
                     className="bg-brand-purple hover:bg-purple-600 text-white px-8 py-3 text-lg font-medium rounded-xl"
                   >
                     Выбрать файл
@@ -143,7 +163,9 @@ const Index = () => {
                 Результаты обработки
               </h2>
               <p className="text-gray-600">
-                Обработано адресов: {mockResults.length + mockErrors.length}
+                Обработано адресов: {processedData?.total || 0} | 
+                Успешно: {displayResults.length} | 
+                Ошибок: {displayErrors.length}
               </p>
             </div>
 
@@ -165,7 +187,7 @@ const Index = () => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {mockResults.map((result) => (
+                      {displayResults.slice(0, 10).map((result) => (
                         <TableRow key={result.id}>
                           <TableCell className="text-sm text-gray-600">
                             {result.original}
@@ -197,13 +219,13 @@ const Index = () => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {mockErrors.map((error) => (
+                      {displayErrors.slice(0, 10).map((error) => (
                         <TableRow key={error.id}>
                           <TableCell className="text-sm text-gray-600">
-                            {error.address}
+                            {error.original}
                           </TableCell>
                           <TableCell className="text-sm text-red-600">
-                            {error.error}
+                            {error.errorMessage}
                           </TableCell>
                         </TableRow>
                       ))}
@@ -216,11 +238,19 @@ const Index = () => {
             {/* Кнопки действий */}
             <div className="flex justify-center gap-4 mt-12">
               <Button 
-                onClick={handleDownload}
+                onClick={() => handleDownload('excel')}
                 className="bg-brand-green hover:bg-green-600 text-white px-8 py-3 text-lg font-medium rounded-xl"
               >
                 <Icon name="Download" size={20} className="mr-2" />
-                Скачать результаты
+                Скачать Excel
+              </Button>
+              <Button 
+                onClick={() => handleDownload('csv')}
+                variant="outline"
+                className="border-brand-green text-brand-green hover:bg-green-50 px-8 py-3 text-lg rounded-xl"
+              >
+                <Icon name="FileText" size={20} className="mr-2" />
+                Скачать CSV
               </Button>
               <Button 
                 onClick={handleReset}
