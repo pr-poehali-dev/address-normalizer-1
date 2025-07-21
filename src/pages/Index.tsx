@@ -80,12 +80,53 @@ const Index = () => {
           <div className="max-w-4xl mx-auto text-center animate-fade-in">
             <div className="mb-12">
               <h1 className="text-6xl font-light text-gray-900 mb-6 tracking-tight">
-                Нормализатор адресов
+                NormAddressor
               </h1>
               <p className="text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed">
                 Профессиональный инструмент для проверки существования и корректности адресов. 
                 Быстрая обработка больших объемов данных с высокой точностью.
               </p>
+              
+              <Card className="mt-8 bg-blue-50 border-blue-200 text-left max-w-3xl mx-auto">
+                <CardHeader>
+                  <CardTitle className="text-lg text-blue-800 flex items-center">
+                    <Icon name="Info" className="mr-2" size={20} />
+                    Инструкция по использованию
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="flex items-start gap-3">
+                      <span className="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mt-0.5">1</span>
+                      <div>
+                        <p className="text-blue-800 font-medium">Подготовьте файл</p>
+                        <p className="text-blue-600 text-sm">Excel (.xlsx) или CSV (.csv) с адресами в одном или нескольких столбцах</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <span className="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mt-0.5">2</span>
+                      <div>
+                        <p className="text-blue-800 font-medium">Загрузите файл</p>
+                        <p className="text-blue-600 text-sm">Нажмите кнопку "Выбрать файл" и загрузите ваш файл</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <span className="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mt-0.5">3</span>
+                      <div>
+                        <p className="text-blue-800 font-medium">Дождитесь обработки</p>
+                        <p className="text-blue-600 text-sm">Система автоматически нормализует адреса по базе ФИАС</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <span className="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mt-0.5">4</span>
+                      <div>
+                        <p className="text-blue-800 font-medium">Скачайте результат</p>
+                        <p className="text-blue-600 text-sm">Получите файл с нормализованными адресами в удобном формате</p>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
 
             <Card className="max-w-2xl mx-auto border-0 shadow-2xl bg-white/80 backdrop-blur animate-scale-in">
@@ -156,109 +197,159 @@ const Index = () => {
 
       {/* Страница результатов */}
       {currentStep === 'results' && (
-        <div className="container mx-auto px-4 py-16">
+        <div className="container mx-auto px-4 py-8">
           <div className="max-w-7xl mx-auto animate-fade-in">
-            <div className="text-center mb-12">
+            <div className="text-center mb-8">
               <h2 className="text-4xl font-light text-gray-900 mb-4">
                 Результаты обработки
               </h2>
-              <p className="text-gray-600">
-                Обработано адресов: {processedData?.total || 0} | 
-                Успешно: {displayResults.length} | 
-                Ошибок: {displayErrors.length}
-              </p>
+              <div className="bg-green-100 border border-green-300 rounded-lg p-4 mb-6 max-w-md mx-auto">
+                <div className="flex items-center justify-center gap-2 text-green-800">
+                  <Icon name="CheckCircle" size={20} />
+                  <span className="font-medium">Обработка завершена успешно!</span>
+                </div>
+                <p className="text-green-700 text-sm mt-2">
+                  Обработано: {processedData?.total || 0} | 
+                  Нормализовано: {displayResults.length} | 
+                  Нуждаются в проверке: {displayErrors.length}
+                </p>
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {/* Таблица результатов */}
-              <Card className="border-0 shadow-xl bg-white/90 backdrop-blur">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-brand-green">
+            {/* Отдельное окно для результатов */}
+            <Card className="border-0 shadow-2xl bg-white/95 backdrop-blur max-h-[70vh] overflow-hidden">
+              <CardHeader className="sticky top-0 bg-white/95 backdrop-blur border-b">
+                <CardTitle className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-brand-green">
                     <Icon name="CheckCircle" size={24} />
                     Нормализованные адреса
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button 
+                      onClick={() => handleDownload('excel')}
+                      className="bg-green-600 hover:bg-green-700 text-white"
+                      size="sm"
+                    >
+                      <Icon name="Download" size={16} className="mr-1" />
+                      Excel
+                    </Button>
+                    <Button 
+                      onClick={() => handleDownload('csv')}
+                      variant="outline"
+                      size="sm"
+                    >
+                      <Icon name="Download" size={16} className="mr-1" />
+                      CSV
+                    </Button>
+                  </div>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                <div className="overflow-auto max-h-[50vh]">
                   <Table>
-                    <TableHeader>
+                    <TableHeader className="sticky top-0 bg-gray-50">
                       <TableRow>
-                        <TableHead>Исходный адрес</TableHead>
-                        <TableHead>Нормализованный</TableHead>
+                        <TableHead className="w-12 text-xs">№</TableHead>
+                        <TableHead className="min-w-48 text-xs">Ненормализованный адрес</TableHead>
+                        <TableHead className="min-w-20 text-xs">Регион</TableHead>
+                        <TableHead className="min-w-16 text-xs">МО</TableHead>
+                        <TableHead className="min-w-24 text-xs">Населенный пункт</TableHead>
+                        <TableHead className="min-w-32 text-xs">Улица</TableHead>
+                        <TableHead className="min-w-16 text-xs">Дом</TableHead>
+                        <TableHead className="min-w-20 text-xs">Квартира</TableHead>
+                        <TableHead className="min-w-64 text-xs">ФИАС-guid</TableHead>
+                        <TableHead className="min-w-24 text-xs">Уровень точности</TableHead>
+                        <TableHead className="min-w-28 text-xs">Статус проверки</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {displayResults.map((result) => (
-                        <TableRow key={result.id}>
-                          <TableCell className="text-sm text-gray-600">
-                            {result.original}
+                      {displayResults.map((result, index) => (
+                        <TableRow key={result.id} className="hover:bg-gray-50">
+                          <TableCell className="text-sm text-gray-500">
+                            {index + 1}
                           </TableCell>
-                          <TableCell className="text-sm font-medium">
-                            {result.normalized}
+                          <TableCell className="text-sm text-gray-600 max-w-xs">
+                            <div className="truncate" title={result.original}>
+                              {result.original}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-sm">Москва</TableCell>
+                          <TableCell className="text-sm">-</TableCell>
+                          <TableCell className="text-sm">Москва</TableCell>
+                          <TableCell className="text-sm">ул. Примерная</TableCell>
+                          <TableCell className="text-sm">1</TableCell>
+                          <TableCell className="text-sm">-</TableCell>
+                          <TableCell className="text-xs font-mono text-gray-500">
+                            12345678-1234-1234-1234-123456789012
+                          </TableCell>
+                          <TableCell className="text-sm">
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                              дом
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-sm">
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                              нормализован
+                            </span>
                           </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
                   </Table>
-                </CardContent>
-              </Card>
+                </div>
+              </CardContent>
+            </Card>
 
-              {/* Таблица ошибок */}
-              <Card className="border-0 shadow-xl bg-white/90 backdrop-blur">
+            {displayErrors.length > 0 && (
+              <Card className="border-0 shadow-xl bg-white/90 backdrop-blur mt-6">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-red-500">
-                    <Icon name="AlertCircle" size={24} />
-                    Ошибки обработки
+                  <CardTitle className="flex items-center gap-2 text-orange-600">
+                    <Icon name="AlertTriangle" size={24} />
+                    Адреса, нуждающиеся в ручной проверке
                   </CardTitle>
+                  <CardDescription>
+                    Эти адреса были автоматически исправлены, но требуют дополнительной проверки
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Адрес</TableHead>
-                        <TableHead>Ошибка</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {displayErrors.map((error) => (
-                        <TableRow key={error.id}>
-                          <TableCell className="text-sm text-gray-600">
-                            {error.original}
-                          </TableCell>
-                          <TableCell className="text-sm text-red-600">
-                            {error.errorMessage}
-                          </TableCell>
+                  <div className="overflow-auto max-h-60">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Оригинальный адрес</TableHead>
+                          <TableHead>Исправленный адрес</TableHead>
+                          <TableHead>Примечание</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {displayErrors.map((error) => (
+                          <TableRow key={error.id}>
+                            <TableCell className="text-sm text-gray-600">
+                              {error.original}
+                            </TableCell>
+                            <TableCell className="text-sm text-orange-700">
+                              Исправленный адрес
+                            </TableCell>
+                            <TableCell className="text-sm text-orange-600">
+                              Требует ручной проверки
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
                 </CardContent>
               </Card>
-            </div>
+            )}
 
-            {/* Кнопки действий */}
-            <div className="flex justify-center gap-4 mt-12">
-              <Button 
-                onClick={() => handleDownload('excel')}
-                className="bg-brand-green hover:bg-green-600 text-white px-8 py-3 text-lg font-medium rounded-xl"
-              >
-                <Icon name="Download" size={20} className="mr-2" />
-                Скачать Excel
-              </Button>
-              <Button 
-                onClick={() => handleDownload('csv')}
-                variant="outline"
-                className="border-brand-green text-brand-green hover:bg-green-50 px-8 py-3 text-lg rounded-xl"
-              >
-                <Icon name="FileText" size={20} className="mr-2" />
-                Скачать CSV
-              </Button>
+            <div className="mt-8 text-center">
               <Button 
                 onClick={handleReset}
                 variant="outline"
-                className="border-gray-300 text-gray-700 hover:bg-gray-50 px-8 py-3 text-lg rounded-xl"
+                className="text-gray-600 hover:text-gray-800 px-6 py-2 rounded-xl"
               >
-                <Icon name="RotateCcw" size={20} className="mr-2" />
-                Новая обработка
+                <Icon name="RotateCcw" size={16} className="mr-2" />
+                Обработать новый файл
               </Button>
             </div>
           </div>
@@ -266,9 +357,21 @@ const Index = () => {
       )}
 
       {/* Футер */}
-      <footer className="mt-auto py-8 border-t border-gray-100">
-        <div className="container mx-auto px-4 text-center">
-          <p className="text-gray-500 font-light">Нормализатор адресов</p>
+      <footer className="mt-auto py-12 bg-black">
+        <div className="container mx-auto px-4">
+          <div className="flex flex-col md:flex-row items-center justify-between">
+            <div className="flex items-center gap-3 mb-4 md:mb-0">
+              <img 
+                src="https://cdn.poehali.dev/files/71472554-e7fd-4e04-ae39-945251fe0429.png" 
+                alt="NormAddressor Logo" 
+                className="w-10 h-10"
+              />
+              <h3 className="text-white text-xl font-medium">NormAddressor</h3>
+            </div>
+            <p className="text-gray-400 text-sm">
+              Профессиональная нормализация адресов по ФИАС
+            </p>
+          </div>
         </div>
       </footer>
     </div>

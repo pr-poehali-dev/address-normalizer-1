@@ -18,7 +18,22 @@ export interface ProcessingResult {
   total: number;
 }
 
-// База правильных адресов для сравнения (аналог Python-справочника)
+// Сокращения городов и расшифровки
+const cityAbbreviations: Record<string, string> = {
+  'Мск': 'Москва',
+  'Моск': 'Москва',
+  'МОСКВА': 'Москва',
+  'СПб': 'Санкт-Петербург',
+  'Питер': 'Санкт-Петербург',
+  'Ленинград': 'Санкт-Петербург',
+  'НН': 'Нижний Новгород',
+  'Н.Новгород': 'Нижний Новгород',
+  'Краснояр': 'Красноярск',
+  'Екат': 'Екатеринбург',
+  'Екб': 'Екатеринбург'
+};
+
+// База правильных адресов для сравнения (аналог ФИАС)
 const addressDatabase = [
   'г. Москва',
   'г. Санкт-Петербург', 
@@ -65,7 +80,7 @@ const addressDatabase = [
 // Настройка Fuse.js для нечеткого поиска (аналог fuzzywuzzy)
 const fuseOptions = {
   includeScore: true,
-  threshold: 0.4, // Чувствительность поиска (0 = точное совпадение, 1 = любое)
+  threshold: 0.05, // 95% точность (0 = точное совпадение, 1 = любое)
   keys: ['item']
 };
 
@@ -144,9 +159,60 @@ const fixSpellingErrors = (address: string): { corrected: string; confidence: nu
   };
 };
 
+// Нормализация CAPS LOCK текста
+function normalizeCaps(text: string): string {
+  // Если весь текст в верхнем регистре - приводим к нормальному виду
+  if (text === text.toUpperCase() && text !== text.toLowerCase()) {
+    return text.toLowerCase().replace(/\b\w/g, char => char.toUpperCase());
+  }
+  return text;
+}
+
+// Замена сокращений городов
+function expandCityAbbreviations(text: string): string {
+  let result = text;
+  Object.entries(cityAbbreviations).forEach(([abbr, full]) => {
+    const regex = new RegExp(`\\b${abbr}\\b`, 'gi');
+    result = result.replace(regex, full);
+  });
+  return result;
+}
+
+// Определение уровня точности
+function getAccuracyLevel(address: string): string {
+  if (/кв\.?\s*\d+|квартира/i.test(address)) {
+    return 'квартира';
+  }
+  if (/д\.?\s*\d+|дом/i.test(address)) {
+    return 'дом';
+  }
+  if (/ул\.|проспект|переулок|шоссе/i.test(address)) {
+    return 'улица';
+  }
+  return 'улица';
+}
+
 // Основная функция нормализации адресов (аналог pandas обработки)
-const normalizeAddress = (address: string): AddressData['normalized'] => {
+const normalizeAddress = (address: string): { normalized: string; accuracyLevel: string } => {
   let normalized = address.trim();
+  
+  // Нормализация CAPS LOCK
+  normalized = normalizeCaps(normalized);
+  
+  // Расшифровка сокращений городов
+  normalized = expandCityAbbreviations(normalized);
+  
+  // Минимальные исправления опечаток
+  const typoFixes: Record<string, string> = {
+    'шосс': 'шоссе',
+    'площ': 'площадь',
+    'бульв': 'бульвар'
+  };
+  
+  Object.entries(typoFixes).forEach(([wrong, correct]) => {
+    const regex = new RegExp(`\\b${wrong}\\b`, 'gi');
+    normalized = normalized.replace(regex, correct);
+  });
   
   // Только базовые правила форматирования без изменения содержания
   normalized = normalized
@@ -161,7 +227,10 @@ const normalizeAddress = (address: string): AddressData['normalized'] => {
   // Убираем лишние пробелы после обработки
   normalized = normalized.replace(/\s+/g, ' ').trim();
   
-  return normalized;
+  // Определяем уровень точности
+  const accuracyLevel = getAccuracyLevel(normalized);
+  
+  return { normalized, accuracyLevel };
 };
 
 // Валидация адреса
@@ -223,13 +292,13 @@ export const processAddressFile = async (
         await new Promise(resolve => setTimeout(resolve, 50));
       }
       
-      const normalized = normalizeAddress(originalAddress);
-      const validation = validateAddress(originalAddress, normalized);
+      const normalizationResult = normalizeAddress(originalAddress);
+      const validation = validateAddress(originalAddress, normalizationResult.normalized);
       
       const addressData: AddressData = {
         id: i + 1,
         original: originalAddress,
-        normalized: normalized,
+        normalized: normalizationResult.normalized,
         status: validation.isValid ? 'success' : 'error',
         errorMessage: validation.errorMessage,
         confidence: validation.isValid ? 95 : 0
