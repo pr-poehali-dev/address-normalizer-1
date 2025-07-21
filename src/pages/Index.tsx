@@ -295,9 +295,9 @@ const Index = () => {
                           </TableCell>
                           <TableCell className="text-sm">
                             <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                              result.confidence === 100 ? 'bg-green-100 text-green-800' : 'bg-orange-100 text-orange-800'
+                              result.confidence === 200 ? 'bg-green-100 text-green-800' : 'bg-orange-100 text-orange-800'
                             }`}>
-                              {result.confidence === 100 ? 'нормализован' : 'требует проверки'}
+                              {result.confidence === 200 ? 'нормализован (200%)' : 'требует проверки'}
                             </span>
                           </TableCell>
                         </TableRow>

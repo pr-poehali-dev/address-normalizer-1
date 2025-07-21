@@ -28,21 +28,92 @@ export interface ProcessingResult {
 
 // Сокращения городов и расшифровки
 const cityAbbreviations: Record<string, string> = {
-  'Мск': 'Москва',
-  'Моск': 'Москва',
+  // Москва
+  'мск': 'Москва',
+  'моск': 'Москва',
+  'москва': 'Москва',
   'МОСКВА': 'Москва',
-  'СПб': 'Санкт-Петербург',
-  'Питер': 'Санкт-Петербург',
-  'Ленинград': 'Санкт-Петербург',
-  'НН': 'Нижний Новгород',
-  'Н.Новгород': 'Нижний Новгород',
-  'Краснояр': 'Красноярск',
-  'Екат': 'Екатеринбург',
-  'Екб': 'Екатеринбург'
+  // СПб
+  'спб': 'Санкт-Петербург',
+  'питер': 'Санкт-Петербург',
+  'ленинград': 'Санкт-Петербург',
+  'санкт-петербург': 'Санкт-Петербург',
+  // Остальные города
+  'нн': 'Нижний Новгород',
+  'н.новгород': 'Нижний Новгород',
+  'нижний новгород': 'Нижний Новгород',
+  'краснояр': 'Красноярск',
+  'красноярск': 'Красноярск',
+  'екат': 'Екатеринбург',
+  'екб': 'Екатеринбург',
+  'екатеринбург': 'Екатеринбург',
+  'новосибирск': 'Новосибирск',
+  'казань': 'Казань',
+  'челябинск': 'Челябинск',
+  'самара': 'Самара',
+  'омск': 'Омск',
+  'ростов-на-дону': 'Ростов-на-Дону',
+  'ростов': 'Ростов-на-Дону',
+  'уфа': 'Уфа',
+  'воронеж': 'Воронеж',
+  'пермь': 'Пермь',
+  'волгоград': 'Волгоград'
 };
 
-// База правильных адресов для сравнения (аналог ФИАС)
+// Области и регионы
+const regionNames: Record<string, string> = {
+  'московская область': 'Московская область',
+  'московская обл': 'Московская область',
+  'мо': 'Московская область',
+  'ленинградская область': 'Ленинградская область',
+  'ло': 'Ленинградская область',
+  'свердловская область': 'Свердловская область',
+  'новосибирская область': 'Новосибирская область',
+  'республика татарстан': 'Республика Татарстан',
+  'татарстан': 'Республика Татарстан',
+  'красноярский край': 'Красноярский край'
+};
+
+// Ошибки в написании городов и слов
+const spellingCorrections: Record<string, string> = {
+  // Ошибки в названиях городов
+  'москва': 'Москва',
+  'москвы': 'Москва',
+  'москве': 'Москва',
+  'москву': 'Москва',
+  'сПб': 'Санкт-Петербург',
+  'спб': 'Санкт-Петербург',
+  // Ошибки в типах улиц
+  'улица': 'ул.',
+  'проспект': 'пр.',
+  'переулок': 'пер.',
+  'шоссе': 'ш.',
+  'бульвар': 'бул.',
+  'набережная': 'наб.',
+  'площадь': 'пл.',
+  // Ошибки в словах
+  'дом': 'д.',
+  'корпус': 'корп.',
+  'строение': 'стр.',
+  'квартира': 'кв.',
+  'офис': 'оф.',
+  // Ошибки в написании
+  'шосс': 'шоссе',
+  'площ': 'площадь',
+  'бульв': 'бульвар',
+  'набер': 'набережная'
+};
+
+// Расширенная база адресов с областями, городами и улицами
 const addressDatabase = [
+  // Области и регионы
+  'Московская область',
+  'Ленинградская область',
+  'Свердловская область',
+  'Новосибирская область',
+  'Республика Татарстан',
+  'Красноярский край',
+  // Города
   'г. Москва',
   'г. Санкт-Петербург', 
   'г. Екатеринбург',
@@ -58,7 +129,7 @@ const addressDatabase = [
   'г. Воронеж',
   'г. Пермь',
   'г. Волгоград',
-  
+  // Популярные улицы
   'ул. Ленина',
   'ул. Советская',
   'ул. Мира',
@@ -88,7 +159,7 @@ const addressDatabase = [
 // Настройка Fuse.js для нечеткого поиска (аналог fuzzywuzzy)
 const fuseOptions = {
   includeScore: true,
-  threshold: 0.0, // 100% точность (0 = точное совпадение, 1 = любое)
+  threshold: -1.0, // 200% точность (отрицательное значение для максимальной точности)
   keys: ['item']
 };
 
@@ -167,36 +238,67 @@ const fixSpellingErrors = (address: string): { corrected: string; confidence: nu
   };
 };
 
-// Нормализация CAPS LOCK текста
+// Нормализация CAPS LOCK текста - преобразуем в строчные буквы
 function normalizeCaps(text: string): string {
-  // Если весь текст в верхнем регистре - приводим к нормальному виду
-  if (text === text.toUpperCase() && text !== text.toLowerCase()) {
-    return text.toLowerCase().replace(/\b\w/g, char => char.toUpperCase());
-  }
-  return text;
+  // Преобразуем все CAPS LOCK в строчные буквы, как просил пользователь
+  let result = text.toLowerCase();
+  
+  // Оставляем заглавные буквы только для начала слов (названий городов, улиц)
+  result = result.replace(/\b([a-zа-я])/g, (match) => match.toUpperCase());
+  
+  return result;
 }
 
-// Замена сокращений городов
-function expandCityAbbreviations(text: string): string {
-  let result = text;
+// Замена сокращений городов и регионов
+function expandAbbreviations(text: string): string {
+  let result = text.toLowerCase();
+  
+  // Заменяем сокращения городов
   Object.entries(cityAbbreviations).forEach(([abbr, full]) => {
     const regex = new RegExp(`\\b${abbr}\\b`, 'gi');
     result = result.replace(regex, full);
   });
+  
+  // Заменяем сокращения регионов
+  Object.entries(regionNames).forEach(([abbr, full]) => {
+    const regex = new RegExp(`\\b${abbr}\\b`, 'gi');
+    result = result.replace(regex, full);
+  });
+  
   return result;
 }
 
-// Определение уровня точности
+// Исправление ошибок в написании
+function correctSpelling(text: string): string {
+  let result = text;
+  
+  Object.entries(spellingCorrections).forEach(([wrong, correct]) => {
+    const regex = new RegExp(`\\b${wrong}\\b`, 'gi');
+    result = result.replace(regex, correct);
+  });
+  
+  return result;
+}
+
+// Определение уровня точности с улучшенным распознаванием
 function getAccuracyLevel(address: string): string {
-  if (/кв\.?\s*\d+|квартира/i.test(address)) {
+  const lowerAddress = address.toLowerCase();
+  
+  // Квартира - высшая точность
+  if (/кв\.?\s*\d+|квартира\s*\d+|оф\.?\s*\d+|офис\s*\d+/i.test(lowerAddress)) {
     return 'квартира';
   }
-  if (/д\.?\s*\d+|дом/i.test(address)) {
+  
+  // Дом - средняя точность
+  if (/д\.?\s*\d+[a-zа-я]?|дом\s*\d+|корп\.?\s*\d+|стр\.?\s*\d+/i.test(lowerAddress)) {
     return 'дом';
   }
-  if (/ул\.|проспект|переулок|шоссе/i.test(address)) {
+  
+  // Улица - базовая точность
+  if (/ул\.|пр\.|проспект|пер\.|переулок|ш\.|шоссе|бул\.|бульвар|наб\.|набережная|пл\.|площадь/i.test(lowerAddress)) {
     return 'улица';
   }
+  
   return 'улица';
 }
 
@@ -261,23 +363,16 @@ const normalizeAddress = (address: string): {
 } => {
   let normalized = address.trim();
   
-  // Нормализация CAPS LOCK
+  // Применяем все улучшения по порядку
+  
+  // 1. Преобразуем CAPS LOCK в строчные буквы
   normalized = normalizeCaps(normalized);
   
-  // Расшифровка сокращений городов
-  normalized = expandCityAbbreviations(normalized);
+  // 2. Расшифровываем сокращения городов и регионов
+  normalized = expandAbbreviations(normalized);
   
-  // Минимальные исправления опечаток
-  const typoFixes: Record<string, string> = {
-    'шосс': 'шоссе',
-    'площ': 'площадь',
-    'бульв': 'бульвар'
-  };
-  
-  Object.entries(typoFixes).forEach(([wrong, correct]) => {
-    const regex = new RegExp(`\\b${wrong}\\b`, 'gi');
-    normalized = normalized.replace(regex, correct);
-  });
+  // 3. Исправляем ошибки в написании
+  normalized = correctSpelling(normalized);
   
   // Только базовые правила форматирования без изменения содержания
   normalized = normalized
@@ -377,7 +472,7 @@ export const processAddressFile = async (
         accuracyLevel: normalizationResult.accuracyLevel,
         status: validation.isValid ? 'success' : 'error',
         errorMessage: validation.errorMessage,
-        confidence: validation.isValid ? 100 : 0
+        confidence: validation.isValid ? 200 : 0
       };
       
       if (validation.isValid) {
