@@ -302,7 +302,7 @@ function getAccuracyLevel(address: string): string {
   return 'улица';
 }
 
-// Разбор адреса на составляющие части
+// Точное определение регионов и населенных пунктов по подписям
 const parseAddressComponents = (address: string): {
   region?: string;
   municipality?: string;
@@ -311,8 +311,8 @@ const parseAddressComponents = (address: string): {
   house?: string;
   apartment?: string;
 } => {
-  // Разбиваем адрес по запятым
-  const parts = address.split(',').map(part => part.trim());
+  // Разбиваем адрес по запятым и пробелам
+  const parts = address.split(/[,;]/).map(part => part.trim()).filter(part => part.length > 0);
   
   const components = {
     region: '',
@@ -323,24 +323,42 @@ const parseAddressComponents = (address: string): {
     apartment: ''
   };
   
-  // Простая логика распознавания частей адреса
+  // Точное распознавание по определениям пользователя
   for (const part of parts) {
-    if (part.match(/^г\.|город|городской/i)) {
-      components.city = part.replace(/^г\.|город\s*/i, '').trim();
-    } else if (part.match(/^ул\.|улица/i)) {
-      components.street = part;
-    } else if (part.match(/д\.|дом/i)) {
-      const match = part.match(/(д\.|дом)\s*(\d+[а-я]?)/i);
-      if (match) components.house = match[2];
-    } else if (part.match(/кв\.|квартира/i)) {
-      const match = part.match(/(кв\.|квартира)\s*(\d+)/i);
-      if (match) components.apartment = match[2];
-    } else if (part.match(/область|обл\.|край|республика/i)) {
+    const lowerPart = part.toLowerCase();
+    
+    // РЕГИОН: слова с подписью обл./обл
+    if (lowerPart.match(/\bобл\.?\b/)) {
       components.region = part;
-    } else if (part.match(/район|р-н/i)) {
+    }
+    // НАСЕЛЕННЫЙ ПУНКТ: слова с подписью п./п/с./с/село/д./д/х./х
+    else if (lowerPart.match(/\b(п\.?|с\.?|село|д\.?|х\.?)\b/)) {
+      components.city = part;
+    }
+    // Улицы и типы улиц
+    else if (lowerPart.match(/ул\.|улица|пр\.|проспект|пер\.|переулок|ш\.|шоссе|бул\.|бульвар|наб\.|набережная|пл\.|площадь/)) {
+      components.street = part;
+    }
+    // Номера домов
+    else if (lowerPart.match(/д\.|дом|корп\.|стр\./)) {
+      const houseMatch = part.match(/(?:д\.|дом)\s*(\d+[a-zа-я]?)/i);
+      if (houseMatch) components.house = houseMatch[1];
+    }
+    // Квартиры и офисы
+    else if (lowerPart.match(/кв\.|квартира|оф\.|офис/)) {
+      const aptMatch = part.match(/(?:кв\.|квартира|оф\.|офис)\s*(\d+)/i);
+      if (aptMatch) components.apartment = aptMatch[1];
+    }
+    // Города без подписи (только если есть г. или город)
+    else if (lowerPart.match(/^г\.|город/)) {
+      components.city = part.replace(/^г\.\s*|город\s*/i, '').trim();
+    }
+    // Районы
+    else if (lowerPart.match(/район|р-н|муниципалитет|округ/)) {
       components.municipality = part;
-    } else if (!components.city && part.length > 2) {
-      // Если город еще не определен и это не короткая часть, считаем городом
+    }
+    // Остальное считаем городом только если нет других компонентов
+    else if (!components.city && !components.region && part.length > 2) {
       components.city = part;
     }
   }
@@ -363,16 +381,22 @@ const normalizeAddress = (address: string): {
 } => {
   let normalized = address.trim();
   
-  // Применяем все улучшения по порядку
+  // Убираем шаблонное распознавание, работаем только по определениям
   
   // 1. Преобразуем CAPS LOCK в строчные буквы
   normalized = normalizeCaps(normalized);
   
-  // 2. Расшифровываем сокращения городов и регионов
-  normalized = expandAbbreviations(normalized);
+  // 2. Минимальные исправления только явных опечаток
+  const basicTypoFixes: Record<string, string> = {
+    'шосс': 'шоссе',
+    'площ': 'площадь', 
+    'бульв': 'бульвар'
+  };
   
-  // 3. Исправляем ошибки в написании
-  normalized = correctSpelling(normalized);
+  Object.entries(basicTypoFixes).forEach(([wrong, correct]) => {
+    const regex = new RegExp(`\\b${wrong}\\b`, 'gi');
+    normalized = normalized.replace(regex, correct);
+  });
   
   // Только базовые правила форматирования без изменения содержания
   normalized = normalized
