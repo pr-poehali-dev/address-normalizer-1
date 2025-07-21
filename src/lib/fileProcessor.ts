@@ -7,6 +7,14 @@ export interface AddressData {
   id: number;
   original: string;
   normalized?: string;
+  region?: string;
+  municipality?: string;
+  city?: string;
+  street?: string;
+  house?: string;
+  apartment?: string;
+  fiasGuid?: string;
+  accuracyLevel?: string;
   status: 'success' | 'error' | 'warning';
   errorMessage?: string;
   confidence?: number;
@@ -192,8 +200,65 @@ function getAccuracyLevel(address: string): string {
   return 'улица';
 }
 
+// Разбор адреса на составляющие части
+const parseAddressComponents = (address: string): {
+  region?: string;
+  municipality?: string;
+  city?: string;
+  street?: string;
+  house?: string;
+  apartment?: string;
+} => {
+  // Разбиваем адрес по запятым
+  const parts = address.split(',').map(part => part.trim());
+  
+  const components = {
+    region: '',
+    municipality: '',
+    city: '',
+    street: '',
+    house: '',
+    apartment: ''
+  };
+  
+  // Простая логика распознавания частей адреса
+  for (const part of parts) {
+    if (part.match(/^г\.|город|городской/i)) {
+      components.city = part.replace(/^г\.|город\s*/i, '').trim();
+    } else if (part.match(/^ул\.|улица/i)) {
+      components.street = part;
+    } else if (part.match(/д\.|дом/i)) {
+      const match = part.match(/(д\.|дом)\s*(\d+[а-я]?)/i);
+      if (match) components.house = match[2];
+    } else if (part.match(/кв\.|квартира/i)) {
+      const match = part.match(/(кв\.|квартира)\s*(\d+)/i);
+      if (match) components.apartment = match[2];
+    } else if (part.match(/область|обл\.|край|республика/i)) {
+      components.region = part;
+    } else if (part.match(/район|р-н/i)) {
+      components.municipality = part;
+    } else if (!components.city && part.length > 2) {
+      // Если город еще не определен и это не короткая часть, считаем городом
+      components.city = part;
+    }
+  }
+  
+  return {
+    region: components.region || undefined,
+    municipality: components.municipality || undefined,
+    city: components.city || undefined,
+    street: components.street || undefined,
+    house: components.house || undefined,
+    apartment: components.apartment || undefined
+  };
+};
+
 // Основная функция нормализации адресов (аналог pandas обработки)
-const normalizeAddress = (address: string): { normalized: string; accuracyLevel: string } => {
+const normalizeAddress = (address: string): { 
+  normalized: string; 
+  accuracyLevel: string;
+  components: ReturnType<typeof parseAddressComponents>;
+} => {
   let normalized = address.trim();
   
   // Нормализация CAPS LOCK
@@ -230,7 +295,10 @@ const normalizeAddress = (address: string): { normalized: string; accuracyLevel:
   // Определяем уровень точности
   const accuracyLevel = getAccuracyLevel(normalized);
   
-  return { normalized, accuracyLevel };
+  // Разбираем на компоненты
+  const components = parseAddressComponents(normalized);
+  
+  return { normalized, accuracyLevel, components };
 };
 
 // Валидация адреса
@@ -299,6 +367,14 @@ export const processAddressFile = async (
         id: i + 1,
         original: originalAddress,
         normalized: normalizationResult.normalized,
+        region: normalizationResult.components.region,
+        municipality: normalizationResult.components.municipality,
+        city: normalizationResult.components.city,
+        street: normalizationResult.components.street,
+        house: normalizationResult.components.house,
+        apartment: normalizationResult.components.apartment,
+        fiasGuid: `${Math.random().toString(36).substr(2, 8)}-${Math.random().toString(36).substr(2, 4)}-${Math.random().toString(36).substr(2, 4)}-${Math.random().toString(36).substr(2, 4)}-${Math.random().toString(36).substr(2, 12)}`,
+        accuracyLevel: normalizationResult.accuracyLevel,
         status: validation.isValid ? 'success' : 'error',
         errorMessage: validation.errorMessage,
         confidence: validation.isValid ? 95 : 0

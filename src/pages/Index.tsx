@@ -273,18 +273,18 @@ const Index = () => {
                               {result.original}
                             </div>
                           </TableCell>
-                          <TableCell className="text-sm">Москва</TableCell>
-                          <TableCell className="text-sm">-</TableCell>
-                          <TableCell className="text-sm">Москва</TableCell>
-                          <TableCell className="text-sm">ул. Примерная</TableCell>
-                          <TableCell className="text-sm">1</TableCell>
-                          <TableCell className="text-sm">-</TableCell>
+                          <TableCell className="text-sm">{result.region || '-'}</TableCell>
+                          <TableCell className="text-sm">{result.municipality || '-'}</TableCell>
+                          <TableCell className="text-sm">{result.city || '-'}</TableCell>
+                          <TableCell className="text-sm">{result.street || '-'}</TableCell>
+                          <TableCell className="text-sm">{result.house || '-'}</TableCell>
+                          <TableCell className="text-sm">{result.apartment || '-'}</TableCell>
                           <TableCell className="text-xs font-mono text-gray-500">
-                            12345678-1234-1234-1234-123456789012
+                            {result.fiasGuid || '-'}
                           </TableCell>
                           <TableCell className="text-sm">
                             <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                              дом
+                              {result.accuracyLevel || 'улица'}
                             </span>
                           </TableCell>
                           <TableCell className="text-sm">
@@ -362,7 +362,7 @@ const Index = () => {
           <div className="flex flex-col md:flex-row items-center justify-between">
             <div className="flex items-center gap-3 mb-4 md:mb-0">
               <img 
-                src="https://cdn.poehali.dev/files/71472554-e7fd-4e04-ae39-945251fe0429.png" 
+                src="https://cdn.poehali.dev/files/603ee755-c7be-450f-9cdd-307534d20969.png" 
                 alt="NormAddressor Logo" 
                 className="w-10 h-10"
               />
