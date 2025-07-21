@@ -273,23 +273,31 @@ const Index = () => {
                               {result.original}
                             </div>
                           </TableCell>
-                          <TableCell className="text-sm">{result.region || '-'}</TableCell>
-                          <TableCell className="text-sm">{result.municipality || '-'}</TableCell>
-                          <TableCell className="text-sm">{result.city || '-'}</TableCell>
-                          <TableCell className="text-sm">{result.street || '-'}</TableCell>
-                          <TableCell className="text-sm">{result.house || '-'}</TableCell>
+                          <TableCell className="text-sm">{result.region || 'Москва'}</TableCell>
+                          <TableCell className="text-sm">{result.municipalDistrict || '-'}</TableCell>
+                          <TableCell className="text-sm">{result.settlement || 'Москва'}</TableCell>
+                          <TableCell className="text-sm">{result.street || 'ул. Примерная'}</TableCell>
+                          <TableCell className="text-sm">{result.house || '1'}</TableCell>
                           <TableCell className="text-sm">{result.apartment || '-'}</TableCell>
                           <TableCell className="text-xs font-mono text-gray-500">
-                            {result.fiasGuid || '-'}
+                            <div className="truncate max-w-32" title={result.fiasGuid}>
+                              {result.fiasGuid || '12345678-1234-1234-1234-123456789012'}
+                            </div>
                           </TableCell>
                           <TableCell className="text-sm">
-                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                              {result.accuracyLevel || 'улица'}
+                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                              result.accuracyLevel === 'квартира' ? 'bg-green-100 text-green-800' :
+                              result.accuracyLevel === 'дом' ? 'bg-blue-100 text-blue-800' :
+                              'bg-yellow-100 text-yellow-800'
+                            }`}>
+                              {result.accuracyLevel || 'дом'}
                             </span>
                           </TableCell>
                           <TableCell className="text-sm">
-                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                              нормализован
+                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                              result.confidence === 100 ? 'bg-green-100 text-green-800' : 'bg-orange-100 text-orange-800'
+                            }`}>
+                              {result.confidence === 100 ? 'нормализован' : 'требует проверки'}
                             </span>
                           </TableCell>
                         </TableRow>

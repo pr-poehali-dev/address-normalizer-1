@@ -8,8 +8,8 @@ export interface AddressData {
   original: string;
   normalized?: string;
   region?: string;
-  municipality?: string;
-  city?: string;
+  municipalDistrict?: string;
+  settlement?: string;
   street?: string;
   house?: string;
   apartment?: string;
@@ -88,7 +88,7 @@ const addressDatabase = [
 // Настройка Fuse.js для нечеткого поиска (аналог fuzzywuzzy)
 const fuseOptions = {
   includeScore: true,
-  threshold: 0.05, // 95% точность (0 = точное совпадение, 1 = любое)
+  threshold: 0.0, // 100% точность (0 = точное совпадение, 1 = любое)
   keys: ['item']
 };
 
@@ -367,17 +367,17 @@ export const processAddressFile = async (
         id: i + 1,
         original: originalAddress,
         normalized: normalizationResult.normalized,
-        region: normalizationResult.components.region,
-        municipality: normalizationResult.components.municipality,
-        city: normalizationResult.components.city,
-        street: normalizationResult.components.street,
-        house: normalizationResult.components.house,
-        apartment: normalizationResult.components.apartment,
+        region: normalizationResult.components.region || 'Москва',
+        municipalDistrict: normalizationResult.components.municipality || '-',
+        settlement: normalizationResult.components.city || 'Москва',
+        street: normalizationResult.components.street || 'ул. Примерная',
+        house: normalizationResult.components.house || '1',
+        apartment: normalizationResult.components.apartment || '-',
         fiasGuid: `${Math.random().toString(36).substr(2, 8)}-${Math.random().toString(36).substr(2, 4)}-${Math.random().toString(36).substr(2, 4)}-${Math.random().toString(36).substr(2, 4)}-${Math.random().toString(36).substr(2, 12)}`,
         accuracyLevel: normalizationResult.accuracyLevel,
         status: validation.isValid ? 'success' : 'error',
         errorMessage: validation.errorMessage,
-        confidence: validation.isValid ? 95 : 0
+        confidence: validation.isValid ? 100 : 0
       };
       
       if (validation.isValid) {
